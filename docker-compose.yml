@@ -1,0 +1,148 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: agency-mongodb
+    restart: unless-stopped
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - agency-network
+    # ports:
+    #   - "27017:27017" # Bỏ comment nếu cần kết nối trực tiếp từ host bằng MongoDB Compass
+    healthcheck:
+      test: ["CMD", "mongosh", "--port", "27017", "--quiet", "--eval", "try { if (db.hello().isWritablePrimary) quit(0); else quit(1); } catch(e) { quit(1); }"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 3s
+
+  mongo-init:
+    image: mongo:7.0
+    container_name: agency-mongo-init
+    restart: "no"
+    networks:
+      - agency-network
+    depends_on:
+      mongodb:
+        condition: service_started
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        CONNECTED=false
+        echo "Waiting for MongoDB daemon to accept connections on mongodb:27017..."
+        for i in {1..30}; do
+          if mongosh --host mongodb:27017 --quiet --eval "db.adminCommand('ping').ok" 2>/dev/null | grep -q "1"; then
+            CONNECTED=true
+            echo "MongoDB connection established successfully."
+            break
+          fi
+          echo "MongoDB not ready yet. Retrying in 1s ($$i/30)..."
+          sleep 1
+        done
+
+        # 1. Kiểm tra timeout kết nối
+        if [ "$$CONNECTED" != "true" ]; then
+          echo "[FATAL ERROR] Failed to connect to MongoDB on mongodb:27017 after 30 seconds. Aborting initialization."
+          exit 1
+        fi
+
+        # 2. Kiểm tra và thẩm định Replica Set
+        mongosh --host mongodb:27017 --quiet --eval '
+          let status;
+          try {
+            status = rs.status();
+          } catch (err) {
+            if (err.code === 94 || err.codeName === "NotYetInitialized" || (err.message && err.message.includes("no replset config has been received"))) {
+              console.log("Confirmed: Replica Set is not yet initialized (code 94: NotYetInitialized).");
+              console.log("Initiating Replica Set rs0 with member mongodb:27017...");
+              const initRes = rs.initiate({
+                _id: "rs0",
+                members: [{ _id: 0, host: "mongodb:27017" }]
+              });
+              if (initRes.ok === 1) {
+                console.log("[SUCCESS] Replica Set rs0 initiated successfully.");
+                quit(0);
+              } else {
+                console.error("[FATAL ERROR] rs.initiate() failed:", JSON.stringify(initRes));
+                quit(1);
+              }
+            } else {
+              console.error("[FATAL ERROR] Unexpected error while checking Replica Set status:", err.message, "Code:", err.code);
+              quit(1);
+            }
+          }
+
+          if (status && status.ok === 1) {
+            console.log("Replica Set is already active. Validating configuration...");
+            const setName = status.set;
+            const members = status.members || [];
+            const memberHosts = members.map(m => m.name);
+
+            const isSetNameValid = (setName === "rs0");
+            const isMemberValid = memberHosts.includes("mongodb:27017");
+
+            if (!isSetNameValid || !isMemberValid) {
+              console.error("[FATAL ERROR] Replica Set configuration mismatch!");
+              console.error("Expected: set \"rs0\" containing member \"mongodb:27017\"");
+              console.error("Found: set \"" + setName + "\", members: " + JSON.stringify(memberHosts));
+              console.error("Halting execution to prevent configuration or data corruption.");
+              quit(1);
+            }
+
+            console.log("[VALIDATED] Existing Replica Set \"" + setName + "\" matches expected configuration (mongodb:27017).");
+            quit(0);
+          } else {
+            console.error("[FATAL ERROR] rs.status() returned unexpected output:", JSON.stringify(status));
+            quit(1);
+          }
+        '
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agency-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - MONGO_URI=mongodb://mongodb:27017/agencysystem_db?replicaSet=rs0
+      - "JWT_SECRET=${JWT_SECRET:?Error: JWT_SECRET environment variable is missing. Please define it in your local .env file.}"
+      - FRONTEND_URL=http://localhost:5173
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - agency-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: agency-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - agency-network
+
+networks:
+  agency-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    name: agency_mongo_data
