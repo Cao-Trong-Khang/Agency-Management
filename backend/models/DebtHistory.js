@@ -13,4 +13,6 @@ const debtHistorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+debtHistorySchema.index({ date: -1, agencyId: 1, debtAfter: 1, change: 1 });
+
 module.exports = mongoose.model("DebtHistory", debtHistorySchema);

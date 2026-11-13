@@ -101,53 +101,52 @@ class ReportService {
       throw new Error("Invalid mode");
     }
 
-    // Load agencies (with type name)
-    const agencies = await Agency.find().populate("typeId", "name maxDebt");
-
-    // Calculate beginning debt for each agency:
-    // Get latest DebtHistory record before or equal to startDate
-    const beginningDebtsAgg = await DebtHistory.aggregate([
-      { $match: { date: { $lte: startDate } } },
-      { $sort: { date: -1 } },
-      {
-        $group: {
-          _id: "$agencyId",
-          beginningDebt: { $first: "$debtAfter" }
+    // Execute independent queries concurrently with Promise.all and use .lean() for read-only agency query
+    const [
+      agencies,
+      beginningDebtsAgg,
+      endingDebtsAgg,
+      changesAgg
+    ] = await Promise.all([
+      Agency.find().populate("typeId", "name maxDebt").lean(),
+      DebtHistory.aggregate([
+        { $match: { date: { $lte: startDate } } },
+        { $sort: { date: -1 } },
+        {
+          $group: {
+            _id: "$agencyId",
+            beginningDebt: { $first: "$debtAfter" }
+          }
         }
-      }
+      ]),
+      DebtHistory.aggregate([
+        { $match: { date: { $lte: endDate } } },
+        { $sort: { date: -1 } },
+        {
+          $group: {
+            _id: "$agencyId",
+            endingDebt: { $first: "$debtAfter" }
+          }
+        }
+      ]),
+      DebtHistory.aggregate([
+        { $match: { date: { $gt: startDate, $lte: endDate } } },
+        {
+          $group: {
+            _id: "$agencyId",
+            changes: { $sum: "$change" }
+          }
+        }
+      ])
     ]);
 
     const beginningDebtMap = new Map(
       beginningDebtsAgg.map(x => [String(x._id), x.beginningDebt])
     );
 
-    // Calculate ending debt for each agency:
-    // Get latest DebtHistory record before or equal to endDate
-    const endingDebtsAgg = await DebtHistory.aggregate([
-      { $match: { date: { $lte: endDate } } },
-      { $sort: { date: -1 } },
-      {
-        $group: {
-          _id: "$agencyId",
-          endingDebt: { $first: "$debtAfter" }
-        }
-      }
-    ]);
-
     const endingDebtMap = new Map(
       endingDebtsAgg.map(x => [String(x._id), x.endingDebt])
     );
-
-    // Calculate changes in filter range for each agency
-    const changesAgg = await DebtHistory.aggregate([
-      { $match: { date: { $gt: startDate, $lte: endDate } } },
-      {
-        $group: {
-          _id: "$agencyId",
-          changes: { $sum: "$change" }
-        }
-      }
-    ]);
 
     const changesMap = new Map(
       changesAgg.map(x => [String(x._id), -x.changes]) // reverse sign for UI debt report
