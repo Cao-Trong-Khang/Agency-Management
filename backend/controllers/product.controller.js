@@ -13,11 +13,11 @@ exports.getProducts = async (req, res) => {
 // POST /api/products
 exports.createProduct = async (req, res) => {
   try {
-    const { name, unit, unitPrice } = req.body;
-    const product = await productService.createProduct(name, unit, unitPrice);
+    const { name, unit, unitPrice, quantity } = req.body;
+    const product = await productService.createProduct(name, unit, unitPrice, quantity);
     res.status(201).json(product);
   } catch (error) {
-    const status = error.message === "Missing product data" ? 400 : 500;
+    const status = error.message === "Missing product data" || error.message.includes("Quantity") ? 400 : 500;
     res.status(status).json({ message: error.message });
   }
 };
@@ -26,12 +26,12 @@ exports.createProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, unit, unitPrice } = req.body;
-    const product = await productService.updateProduct(id, name, unit, unitPrice);
+    const { name, unit, unitPrice, quantity } = req.body;
+    const product = await productService.updateProduct(id, name, unit, unitPrice, quantity);
     res.json(product);
   } catch (error) {
     const status =
-      error.message === "Invalid product id" ? 400 :
+      error.message === "Invalid product id" || error.message.includes("Quantity") ? 400 :
       error.message === "Product not found" ? 404 : 500;
     res.status(status).json({ message: error.message });
   }

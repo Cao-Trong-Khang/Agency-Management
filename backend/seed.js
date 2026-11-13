@@ -40,8 +40,8 @@ const seed = async () => {
 
   // Products
   await Product.create([
-    { name: "Coca", unit: "Bottle", unitPrice: 10000 },
-    { name: "Pepsi", unit: "Bottle", unitPrice: 9000 }
+    { name: "Coca", unit: "Bottle", unitPrice: 10000, quantity: 500 },
+    { name: "Pepsi", unit: "Bottle", unitPrice: 9000, quantity: 500 }
   ]);
 
   // System regulation (singleton)

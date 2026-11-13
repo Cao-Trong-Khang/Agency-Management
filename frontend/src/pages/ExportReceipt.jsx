@@ -77,6 +77,7 @@ function ExportReceipt({ user, onLogout, onNavigate, currentPage = 'export-recei
             updated.product = selectedProd.name;
             updated.unit = selectedProd.unit;
             updated.unitPrice = selectedProd.unitPrice;
+            updated.availableStock = selectedProd.quantity ?? 0;
             updated.amount = updated.quantity * selectedProd.unitPrice;
           }
         } else {
@@ -129,6 +130,22 @@ function ExportReceipt({ user, onLogout, onNavigate, currentPage = 'export-recei
       return;
     }
 
+    // Validation: Check stock availability
+    const outOfStockItem = validProducts.find(p => {
+      const prodInList = productsList.find(item => item._id === p.productId);
+      const stock = prodInList?.quantity ?? 0;
+      return p.quantity > stock;
+    });
+
+    if (outOfStockItem) {
+      const prodInList = productsList.find(item => item._id === outOfStockItem.productId);
+      setNotification({
+        type: 'error',
+        message: `Quantity for "${prodInList?.name || 'Product'}" exceeds available stock (${prodInList?.quantity ?? 0}).`
+      });
+      return;
+    }
+
     try {
       const payload = {
         agencyId: selectedAgency.id || selectedAgency._id,
@@ -147,9 +164,17 @@ function ExportReceipt({ user, onLogout, onNavigate, currentPage = 'export-recei
       // Refresh agencies to update debt
       const list = await getAgencies();
       setAgencies(list);
-      // Re-select current agency
       const updated = list.find((a) => (a.id === selectedAgency.id || a._id === selectedAgency._id));
       setSelectedAgency(updated || list[0] || null);
+
+      // Refresh product list to update stock
+      const updatedProducts = await getProducts();
+      setProductsList(updatedProducts || []);
+
+      // Reset products form
+      setProducts([
+        { id: 1, productId: "", product: "", unit: "Box", quantity: 1, unitPrice: 0, amount: 0 }
+      ]);
 
     } catch (error) {
       setNotification({ type: 'error', message: "Failed to create receipt: " + error.message });
@@ -259,7 +284,9 @@ function ExportReceipt({ user, onLogout, onNavigate, currentPage = 'export-recei
                       >
                         <option value="" disabled>Select Product</option>
                         {productsList.map(p => (
-                          <option key={p._id} value={p._id}>{p.name}</option>
+                          <option key={p._id} value={p._id}>
+                            {p.name} (Stock: {p.quantity ?? 0})
+                          </option>
                         ))}
                       </select>
                     </td>
@@ -281,7 +308,13 @@ function ExportReceipt({ user, onLogout, onNavigate, currentPage = 'export-recei
                         onChange={(e) => handleProductChange(product.id, 'quantity', Number(e.target.value))}
                         className="table-input text-center"
                         min="1"
+                        max={product.availableStock || undefined}
                       />
+                      {product.productId && (
+                        <div style={{ fontSize: '11px', color: (product.availableStock || 0) < product.quantity ? '#ef4444' : '#64748b', textAlign: 'center', marginTop: '2px' }}>
+                          In stock: {product.availableStock ?? 0}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <input

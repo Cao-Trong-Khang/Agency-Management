@@ -15,6 +15,7 @@ import ExportReceipt from './pages/ExportReceipt';
 import PaymentReceiptList from './pages/PaymentReceiptList';
 import PaymentReceipt from './pages/PaymentReceipt';
 import RevenueReport from './pages/RevenueReport';
+import Products from './pages/Products';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ user, children }) => {
@@ -137,6 +138,13 @@ const AppRoutes = ({ user, onLogin, onLogout }) => {
                     <RevenueReport {...pageProps} />
                 </ProtectedRoute>
             } />
+
+            <Route path="/products" element={
+                <ProtectedRoute user={user}>
+                    <Products {...pageProps} />
+                </ProtectedRoute>
+            } />
+            <Route path="/product" element={<Navigate to="/products" replace />} />
 
             <Route path="/system-regulation" element={
                 <ProtectedRoute user={user}>

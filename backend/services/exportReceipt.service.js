@@ -57,6 +57,23 @@ class ExportReceiptService {
         // Map products by id for quick lookup
         const productMap = new Map(products.map((p) => [String(p._id), p]));
 
+        // Aggregate requested quantities per product and check stock availability
+        const requestedQtyMap = new Map();
+        for (const it of items) {
+          const pId = String(it.productId);
+          const current = requestedQtyMap.get(pId) || 0;
+          requestedQtyMap.set(pId, current + Number(it.quantity));
+        }
+
+        for (const [pId, reqQty] of requestedQtyMap.entries()) {
+          const p = productMap.get(pId);
+          if (!p) throw new Error("Product not found in items");
+          const availableQty = Number(p.quantity || 0);
+          if (availableQty < reqQty) {
+            throw new Error(`Insufficient stock for product "${p.name}". Available: ${availableQty}, requested: ${reqQty}`);
+          }
+        }
+
         // 5) Build items snapshot + calculate total
         const builtItems = items.map((it) => {
           const p = productMap.get(String(it.productId));
@@ -148,7 +165,14 @@ class ExportReceiptService {
           { session }
         );
 
-        // 10) Set result
+        // 10) Deduct product inventory
+        for (const [pId, reqQty] of requestedQtyMap.entries()) {
+          const p = productMap.get(pId);
+          p.quantity -= reqQty;
+          await p.save({ session });
+        }
+
+        // 11) Set result
         result = {
           receipt: createdReceipt,
           agency: {

@@ -74,18 +74,18 @@ const seedBenchmark = async () => {
   ]);
 
   const productsData = [
-    { name: "Coca Cola Lon 330ml", unit: "Thùng 24 lon", unitPrice: 210000 },
-    { name: "Pepsi Cola Lon 330ml", unit: "Thùng 24 lon", unitPrice: 200000 },
-    { name: "Bia Heineken Silver", unit: "Thùng 24 lon", unitPrice: 420000 },
-    { name: "Bia Tiger Crystal", unit: "Thùng 24 lon", unitPrice: 380000 },
-    { name: "Nước tăng lực Red Bull", unit: "Thùng 24 lon", unitPrice: 260000 },
-    { name: "Nước tăng lực Sting Dâu", unit: "Thùng 24 chai", unitPrice: 190000 },
-    { name: "Trà xanh Không Độ", unit: "Thùng 24 chai", unitPrice: 180000 },
-    { name: "Trà Ô Long TEA+ Plus", unit: "Thùng 24 chai", unitPrice: 215000 },
-    { name: "Nước khoáng Lavie 500ml", unit: "Thùng 24 chai", unitPrice: 110000 },
-    { name: "Nước tinh khiết Aquafina", unit: "Thùng 24 chai", unitPrice: 115000 },
-    { name: "Sữa tươi Vinamilk 100%", unit: "Thùng 48 hộp", unitPrice: 360000 },
-    { name: "Cà phê lon Highlands Coffee", unit: "Thùng 24 lon", unitPrice: 320000 }
+    { name: "Coca Cola Lon 330ml", unit: "Thùng 24 lon", unitPrice: 210000, quantity: 10000 },
+    { name: "Pepsi Cola Lon 330ml", unit: "Thùng 24 lon", unitPrice: 200000, quantity: 10000 },
+    { name: "Bia Heineken Silver", unit: "Thùng 24 lon", unitPrice: 420000, quantity: 10000 },
+    { name: "Bia Tiger Crystal", unit: "Thùng 24 lon", unitPrice: 380000, quantity: 10000 },
+    { name: "Nước tăng lực Red Bull", unit: "Thùng 24 lon", unitPrice: 260000, quantity: 10000 },
+    { name: "Nước tăng lực Sting Dâu", unit: "Thùng 24 chai", unitPrice: 190000, quantity: 10000 },
+    { name: "Trà xanh Không Độ", unit: "Thùng 24 chai", unitPrice: 180000, quantity: 10000 },
+    { name: "Trà Ô Long TEA+ Plus", unit: "Thùng 24 chai", unitPrice: 215000, quantity: 10000 },
+    { name: "Nước khoáng Lavie 500ml", unit: "Thùng 24 chai", unitPrice: 110000, quantity: 10000 },
+    { name: "Nước tinh khiết Aquafina", unit: "Thùng 24 chai", unitPrice: 115000, quantity: 10000 },
+    { name: "Sữa tươi Vinamilk 100%", unit: "Thùng 48 hộp", unitPrice: 360000, quantity: 10000 },
+    { name: "Cà phê lon Highlands Coffee", unit: "Thùng 24 lon", unitPrice: 320000, quantity: 10000 }
   ];
   const products = await Product.create(productsData);
 
